@@ -22,14 +22,14 @@ uint32_t merge_4_blocks8bit_to_1_block32bit(uint8_t*);
 
 static unsigned char Pi[8][16] =
 {
-    {12, 4, 6, 2, 10, 5, 11, 9, 14, 8, 13, 7, 0, 3, 15, 1},
-    {6, 8, 2, 3, 9, 10, 5, 12, 1, 14, 4, 7, 11, 13, 0, 15},
-    {11, 3, 5, 8, 2, 15, 10, 13, 14, 1, 7, 4, 12, 9, 6, 0},
-    {12, 8, 2, 1, 13, 4, 15, 6, 7, 0, 10, 5, 3, 14, 9, 11},
-    {7, 15, 5, 10, 8, 1, 6, 13, 0, 9, 3, 14, 11, 4, 2, 12},
-    {5, 13, 15, 6, 9, 2, 12, 10, 11, 7, 8, 1, 4, 3, 14, 0},
+    {1, 7, 14, 13, 0, 5, 8, 3, 4, 15, 10, 6, 9, 12, 11, 2},
     {8, 14, 2, 5, 6, 9, 1, 12, 15, 4, 11, 0, 13, 10, 3, 7},
-    {1, 7, 14, 13, 0, 5, 8, 3, 4, 15, 10, 6, 9, 12, 11, 2}
+    {5, 13, 15, 6, 9, 2, 12, 10, 11, 7, 8, 1, 4, 3, 14, 0},
+    {7, 15, 5, 10, 8, 1, 6, 13, 0, 9, 3, 14, 11, 4, 2, 12},
+    {12, 8, 2, 1, 13, 4, 15, 6, 7, 0, 10, 5, 3, 14, 9, 11},
+     {11, 3, 5, 8, 2, 15, 10, 13, 14, 1, 7, 4, 12, 9, 6, 0},
+     {6, 8, 2, 3, 9, 10, 5, 12, 1, 14, 4, 7, 11, 13, 0, 15},
+    {12, 4, 6, 2, 10, 5, 11, 9, 14, 8, 13, 7, 0, 3, 15, 1}  
 };
 
 
@@ -57,7 +57,7 @@ void enc(uint32_t * block32bit1, uint32_t * block32bit2,uint32_t * keys32bit)
     uint8_t first_4bit;
     uint8_t second_4bit;
 
-    uint32_t tmp = *block32bit2;
+    
   
 
     for (int i = 0; i < 32; i++)
@@ -67,7 +67,7 @@ void enc(uint32_t * block32bit1, uint32_t * block32bit2,uint32_t * keys32bit)
             j = i % 8;
         else
             j = 31 - i;
-       
+        uint32_t tmp = *block32bit2;
         *block32bit2 += keys32bit[j] % UINT32_MAX;
         for (int i = 0; i < 4; i++)
         {
@@ -87,12 +87,20 @@ void enc(uint32_t * block32bit1, uint32_t * block32bit2,uint32_t * keys32bit)
 
 
         *block32bit2 = merge_4_blocks8bit_to_1_block32bit(block32bit_in_4_blocks8bit);
-        *block32bit2 = (*block32bit2 << 11) | (*block32bit2 >> 21);// not sure
+        *block32bit2 = (*block32bit2 << 11) | (*block32bit2 >> 21);
         
         *block32bit2 = *block32bit2 ^ *block32bit1;
 
-        
         *block32bit1 = tmp;
+        if (i == 31)
+        {
+            uint32_t tmp1 = *block32bit2;
+            *block32bit2 = *block32bit1;
+            *block32bit1 = tmp1;
+        }
+
+        //printf("open text in round %d  -  %" PRIx32 "   ",i, *block32bit1);
+        //printf("%" PRIx32 "\n", *block32bit2);
         
         
     }
@@ -108,11 +116,11 @@ void split_key256bit_to_8_keys32bit(uint32_t* keys32bit, uint8_t* key256bit)
     for (int i = 0; i < 8; i++)
     {
        
-        keys32bit[i] = key256bit[j] | (key256bit[j + 1] << 8) | (key256bit[j + 2] << 16) | (key256bit[j + 3] << 24);
+        keys32bit[i] = key256bit[j+3] | (key256bit[j + 2] << 8) | (key256bit[j + 1] << 16) | (key256bit[j] << 24);
         j += 4;
     }
-    for (int i = 7 ; i >= 0; i --)
-        printf("key %d - %X\n", i, keys32bit[i]);
+    for (int i = 0 ; i < 8; i ++)
+        printf("key %d - %x\n", i, keys32bit[i]);
     cout << endl;
 }
 
@@ -130,7 +138,7 @@ uint64_t merge_8_blocks8bit_to_1_block64bit(uint8_t * open_text, int index)
     {
        open_text_64bit = (open_text_64bit << 8) | open_text[i];
     }
-    printf("%" PRIX64 "\n", open_text_64bit);
+    //printf("%" PRIx64 "\n", open_text_64bit);
     return open_text_64bit;
 
 }
@@ -152,17 +160,15 @@ void magma(char mode, uint8_t* result, uint8_t* open_text, uint8_t* key256bit, i
             &second_part_of_open_text_32bit,
             &first_part_of_open_text_32bit
         );
-       // printf("32bit - %" PRIX32 "\n", first_part_of_open_text_32bit);
-       // printf("32bit - %" PRIX32 "\n", second_part_of_open_text_32bit);
+        
         enc(&first_part_of_open_text_32bit,
             &second_part_of_open_text_32bit,
             keys32bit
         );
-        printf("%" PRIX32 , first_part_of_open_text_32bit);
-        printf("%" PRIX32 , second_part_of_open_text_32bit);
+        
         
        
-        //printf("%" PRIX32 "\n%" PRIX32, first_part_of_open_text_32bit, second_part_of_open_text_32bit);
+        printf("%" PRIx32 "%" PRIx32, first_part_of_open_text_32bit, second_part_of_open_text_32bit);
     }
    
     
@@ -174,15 +180,15 @@ int main()
 
     uint8_t open_text[max_open_text_size], result[max_open_text_size], key256bit[32];
     int open_text_size = 0;
-    while (true)
-    {
-        uint8_t symb = getchar();
-        if (symb == '\n')// || open_text_size - 1 > max_open_text_size)
-            break;
-        open_text[open_text_size] = symb;
-        open_text_size++;
-    }
-    
+    //while (true)
+    //{
+     //   uint8_t symb = getchar();
+      //  if (symb == '\n')// || open_text_size - 1 > max_open_text_size)
+      //      break;
+       // open_text[open_text_size] = symb;
+        //open_text_size++;
+    //}
+    open_text_size = 8;
     //открытый текст как в госте
     open_text[0] = 254;
     open_text[1] = 220;
@@ -194,7 +200,7 @@ int main()
     open_text[7] = 16;
     cout << "open text - ";
     for (int i = 0; i < open_text_size; i++)
-        printf("%X", open_text[i]);
+        printf("%x", open_text[i]);
     cout << endl;
     open_text[open_text_size] = '\0';
     
@@ -235,7 +241,7 @@ int main()
     
     cout << "key - ";
     for (int i = 0; i < 32; i++)
-        printf("%X", key256bit[i]);
+        printf("%x", key256bit[i]);
     cout << endl;
     char mode = 'E';
     magma(mode, result, open_text, key256bit, open_text_size);
